@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import * as XLSX from 'xlsx'; // ✅ เพิ่ม Import xlsx
+import { useState, useRef } from 'react'; // ✅ เพิ่ม useRef
+import * as XLSX from 'xlsx'; 
+import html2canvas from 'html2canvas'; // ✅ เพิ่ม html2canvas
+import jsPDF from 'jspdf'; // ✅ เพิ่ม jsPDF
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -11,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   Search, CalendarDays, User, GraduationCap, Building2, BookOpen, 
   ArrowLeft, Clock, Hash, Users, MapPin, Building, Briefcase, Eraser,
-  Download // ✅ เพิ่ม Import icon Download
+  Download, FileText // ✅ เพิ่ม Icon FileText สำหรับ PDF
 } from "lucide-react";
 import Link from 'next/link';
 
@@ -33,6 +35,9 @@ export default function SchedulePage() {
   const [scheduleData, setScheduleData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  
+  // ✅ สร้าง Ref เพื่อใช้อ้างอิงส่วนที่จะ Capture เป็น PDF
+  const scheduleRef = useRef<HTMLDivElement>(null);
 
   // State สำหรับ Filter
   const [filters, setFilters] = useState({
@@ -108,40 +113,29 @@ export default function SchedulePage() {
     }
   };
 
-  // --- ✅ ฟังก์ชัน Export Excel ---
-// --- ✅ ฟังก์ชัน Export Excel แบบตารางเรียน (Grid Layout) ---
+  // --- ฟังก์ชัน Export Excel ---
   const handleExportExcel = () => {
     if (!scheduleData || scheduleData.length === 0) {
       alert("ไม่มีข้อมูลให้ Export");
       return;
     }
-
-    // 1. เตรียม Header (แถวแรก)
     const headerRow = ["วัน / เวลา", ...TIME_SLOTS];
-    
-    // 2. เตรียมข้อมูลแต่ละแถว (จันทร์ - ศุกร์) และคำนวณ Merge
     const dataRows: any[][] = [];
-    const merges: XLSX.Range[] = []; // เก็บตำแหน่งที่จะ Merge Cells
+    const merges: XLSX.Range[] = []; 
 
     DAYS.forEach((dayName, dayIndex) => {
-      // สร้าง Array เปล่าสำหรับแถวนั้นๆ โดยช่องแรกใส่วัน
       const rowData: string[] = new Array(TIME_SLOTS.length + 1).fill("");
       rowData[0] = dayName;
-
-      let skipUntil = -1; // ตัวแปรช่วยข้าม Loop กรณีเจอวิชาที่เรียนหลายคาบ
+      let skipUntil = -1; 
 
       for (let i = 0; i < TIME_SLOTS.length; i++) {
         if (i <= skipUntil) continue;
-
-        // หาข้อมูลวิชาที่เริ่มเรียนในคาบนี้ (i) และวันปัจจุบัน (dayIndex)
         const subject = scheduleData.find(s => s.day_of_week === dayIndex && s.start_slot === i);
 
         if (subject) {
-          // คำนวณจำนวนคาบที่เรียนต่อเนื่อง (Span)
           let span = 1;
           for (let j = i + 1; j < TIME_SLOTS.length; j++) {
             const nextSubject = scheduleData.find(s => s.day_of_week === dayIndex && s.start_slot === j);
-            // เช็คว่าเป็นวิชาเดียวกันและห้องเดียวกันหรือไม่
             if (nextSubject && nextSubject.subject_code === subject.subject_code && nextSubject.room_code === subject.room_code) {
               span++;
             } else {
@@ -149,46 +143,79 @@ export default function SchedulePage() {
             }
           }
 
-          // จัดรูปแบบข้อความที่จะแสดงในช่อง Excel
-          // \n คือการขึ้นบรรทัดใหม่ใน Excel
           const cellText = `${subject.subject_name}\n(${subject.subject_code})\nห้อง: ${subject.room_code}\n${subject.department || ''}`;
-          
-          // ใส่ข้อมูลลงในช่อง (Column ต้อง +1 เพราะช่องแรกเป็นชื่อวัน)
           rowData[i + 1] = cellText;
 
-          // ถ้าเรียนมากกว่า 1 คาบ ให้เพิ่มข้อมูลลงใน merges array
           if (span > 1) {
             merges.push({
-              s: { r: dayIndex + 1, c: i + 1 }, // จุดเริ่ม (Start): r=แถว, c=คอลัมน์
-              e: { r: dayIndex + 1, c: i + span } // จุดจบ (End)
+              s: { r: dayIndex + 1, c: i + 1 }, 
+              e: { r: dayIndex + 1, c: i + span } 
             });
           }
-
-          // ข้าม Loop ไปตามจำนวนคาบที่ Merge
           skipUntil = i + span - 1;
         }
       }
       dataRows.push(rowData);
     });
 
-    // 3. รวม Header และ Data เข้าด้วยกัน
     const wsData = [headerRow, ...dataRows];
-
-    // 4. สร้าง Worksheet
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-    // 5. ตั้งค่า Merges ให้กับ Worksheet
     ws['!merges'] = merges;
-
-    // 6. ตั้งค่าความกว้างคอลัมน์ (Optional)
-    // ช่องแรกกว้าง 15, ช่องเวลาเรียนกว้าง 20
     const cols = [{ wch: 15 }, ...TIME_SLOTS.map(() => ({ wch: 25 }))];
     ws['!cols'] = cols;
-
-    // 7. บันทึกไฟล์
     XLSX.utils.book_append_sheet(wb, ws, "ตารางเรียน");
-    XLSX.writeFile(wb, `Schedule_Table_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(wb, `Schedule_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  // --- ✅ ฟังก์ชัน Export PDF ---
+  const handleExportPDF = async () => {
+    if (!scheduleRef.current || scheduleData.length === 0) {
+        alert("ไม่มีข้อมูลให้ Export");
+        return;
+    }
+
+    try {
+        const input = scheduleRef.current;
+        
+        // แปลง HTML เป็น Canvas
+        const canvas = await html2canvas(input, { 
+            scale: 2, // เพิ่มความคมชัด
+            useCORS: true, // รองรับรูปภาพจากแหล่งอื่น (ถ้ามี)
+            logging: false,
+            backgroundColor: '#ffffff' // พื้นหลังสีขาว
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        
+        // ตั้งค่า PDF (Landscape, หน่วย mm, ขนาด A4)
+        const pdf = new jsPDF('l', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        
+        // คำนวณอัตราส่วนให้พอดีหน้ากระดาษ
+        const imgWidth = canvas.width;
+        const imgHeight = canvas.height;
+        const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+        
+        const imgX = (pdfWidth - imgWidth * ratio) / 2;
+        const imgY = 10; // ระยะห่างจากด้านบน 10mm
+
+        // เพิ่ม Header ใน PDF
+        pdf.setFontSize(16);
+        // หมายเหตุ: jsPDF ปกติไม่รองรับภาษาไทยโดยตรง ต้องมีการลง Font เพิ่ม
+        // ในที่นี้เราจะใช้รูปภาพตารางเรียนซึ่งมีภาษาไทยอยู่แล้วจึงไม่มีปัญหา
+        // แต่ข้อความหัวกระดาษถ้าเป็นไทยอาจจะเพี้ยนถ้าไม่ลง Font
+        // ดังนั้นเราจะแปะรูปอย่างเดียวก่อนเพื่อความชัวร์ หรือใส่หัวข้อเป็นภาษาอังกฤษ
+        pdf.text("Class Schedule", 14, 15); 
+
+        pdf.addImage(imgData, 'PNG', imgX, 20, imgWidth * ratio, imgHeight * ratio);
+        pdf.save(`Schedule_${new Date().toISOString().slice(0, 10)}.pdf`);
+
+    } catch (error) {
+        console.error("PDF Export Error:", error);
+        alert("เกิดข้อผิดพลาดในการสร้าง PDF");
+    }
   };
 
   const renderRowCells = (dayIndex: number) => {
@@ -421,7 +448,7 @@ export default function SchedulePage() {
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {scheduleData.length > 0 ? (
                     <div className="bg-white rounded-xl shadow-lg border overflow-hidden">
-                        <div className="p-4 bg-indigo-50 border-b flex justify-between items-center">
+                        <div className="p-4 bg-indigo-50 border-b flex justify-between items-center flex-wrap gap-2">
                             <h3 className="font-bold text-indigo-900 flex items-center gap-2">
                                 <CalendarDays className="w-5 h-5" /> ผลลัพธ์การค้นหา
                             </h3>
@@ -434,33 +461,44 @@ export default function SchedulePage() {
                                 >
                                     <Download className="w-4 h-4 mr-2" /> Excel
                                 </Button>
+                                {/* ✅ ปุ่ม Export PDF */}
+                                <Button 
+                                    onClick={handleExportPDF}
+                                    variant="outline"
+                                    className="border-red-500 text-red-700 hover:bg-red-50"
+                                >
+                                    <FileText className="w-4 h-4 mr-2" /> PDF
+                                </Button>
                                 <Badge className="bg-indigo-600 hover:bg-indigo-700 h-9 px-3 text-sm">{scheduleData.length} รายการ</Badge>
                             </div>
                         </div>
-                        <div className="overflow-x-auto">
-                            <table className="w-full min-w-[1200px]">
-                                <thead>
-                                    <tr>
-                                        <th className="bg-white p-4 w-24 border-b border-r text-sm font-semibold text-slate-700 sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">วัน / เวลา</th>
-                                        {TIME_SLOTS.map((time, i) => (
-                                            <th key={i} className="bg-slate-50 p-2 border-b border-r text-xs font-medium text-slate-500 text-center w-[8%]">
-                                                <div className="mb-1 bg-slate-200/50 rounded py-0.5 mx-auto w-fit px-2 font-mono">คาบ {i+1}</div>
-                                                {time}
-                                            </th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {DAYS.map((day, dayIndex) => (
-                                        <tr key={day}>
-                                            <td className="bg-slate-50 p-4 border-b border-r font-bold text-slate-700 text-center sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
-                                                {day}
-                                            </td>
-                                            {renderRowCells(dayIndex)}
+                        <div className="overflow-x-auto p-2">
+                            {/* ✅ แปะ Ref ที่ตารางเพื่อให้ html2canvas จับภาพ */}
+                            <div ref={scheduleRef} className="bg-white p-2">
+                                <table className="w-full min-w-[1200px]">
+                                    <thead>
+                                        <tr>
+                                            <th className="bg-white p-4 w-24 border-b border-r text-sm font-semibold text-slate-700 sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">วัน / เวลา</th>
+                                            {TIME_SLOTS.map((time, i) => (
+                                                <th key={i} className="bg-slate-50 p-2 border-b border-r text-xs font-medium text-slate-500 text-center w-[8%]">
+                                                    <div className="mb-1 bg-slate-200/50 rounded py-0.5 mx-auto w-fit px-2 font-mono">คาบ {i+1}</div>
+                                                    {time}
+                                                </th>
+                                            ))}
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {DAYS.map((day, dayIndex) => (
+                                            <tr key={day}>
+                                                <td className="bg-slate-50 p-4 border-b border-r font-bold text-slate-700 text-center sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                                                    {day}
+                                                </td>
+                                                {renderRowCells(dayIndex)}
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 ) : (
