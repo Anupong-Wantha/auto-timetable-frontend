@@ -1,19 +1,20 @@
 'use client';
 
-import { useState, useRef } from 'react'; // ✅ เพิ่ม useRef
+import { useState, useRef } from 'react';
 import * as XLSX from 'xlsx'; 
-import html2canvas from 'html2canvas'; // ✅ เพิ่ม html2canvas
-import jsPDF from 'jspdf'; // ✅ เพิ่ม jsPDF
+// ✅ เปลี่ยนมาใช้ html-to-image แทน html2canvas
+import * as htmlToImage from 'html-to-image';
+import jsPDF from 'jspdf';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   Search, CalendarDays, User, GraduationCap, Building2, BookOpen, 
-  ArrowLeft, Clock, Hash, Users, MapPin, Building, Briefcase, Eraser,
-  Download, FileText // ✅ เพิ่ม Icon FileText สำหรับ PDF
+  ArrowLeft, Clock, Hash, Users, MapPin, Building, Eraser,
+  Download, FileText 
 } from "lucide-react";
 import Link from 'next/link';
 
@@ -25,7 +26,7 @@ const TIME_SLOTS = [
 ];
 const DAYS = ["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์"];
 
-// --- Mock Data for Selects ---
+// --- Mock Data ---
 const DEPARTMENTS = ["เทคโนโลยีสารสนเทศ", "ช่างอิเล็กทรอนิกส์", "ยานยนต์ไฟฟ้า", "ช่างเทคนิคคอมพิวเตอร์", "บัญชี", "การตลาด"];
 const YEARS = ["ปวช.1", "ปวช.2", "ปวช.3", "ปวส.1", "ปวส.2"];
 const ROOM_TYPES = ["ทฤษฎี", "ปฏิบัติการ", "คอมพิวเตอร์", "โรงฝึกงาน"];
@@ -36,7 +37,7 @@ export default function SchedulePage() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   
-  // ✅ สร้าง Ref เพื่อใช้อ้างอิงส่วนที่จะ Capture เป็น PDF
+  // ✅ Ref สำหรับจับภาพตาราง
   const scheduleRef = useRef<HTMLDivElement>(null);
 
   // State สำหรับ Filter
@@ -113,7 +114,7 @@ export default function SchedulePage() {
     }
   };
 
-  // --- ฟังก์ชัน Export Excel ---
+  // --- Export Excel ---
   const handleExportExcel = () => {
     if (!scheduleData || scheduleData.length === 0) {
       alert("ไม่มีข้อมูลให้ Export");
@@ -168,7 +169,7 @@ export default function SchedulePage() {
     XLSX.writeFile(wb, `Schedule_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
-  // --- ✅ ฟังก์ชัน Export PDF ---
+  // --- ✅ Export PDF (ใช้ html-to-image) ---
   const handleExportPDF = async () => {
     if (!scheduleRef.current || scheduleData.length === 0) {
         alert("ไม่มีข้อมูลให้ Export");
@@ -178,43 +179,39 @@ export default function SchedulePage() {
     try {
         const input = scheduleRef.current;
         
-        // แปลง HTML เป็น Canvas
-        const canvas = await html2canvas(input, { 
-            scale: 2, // เพิ่มความคมชัด
-            useCORS: true, // รองรับรูปภาพจากแหล่งอื่น (ถ้ามี)
-            logging: false,
-            backgroundColor: '#ffffff' // พื้นหลังสีขาว
+        // ใช้ html-to-image แทน html2canvas (แก้ปัญหาเรื่องสี lab)
+        const dataUrl = await htmlToImage.toPng(input, { 
+            quality: 1.0,
+            pixelRatio: 2, // เพิ่มความคมชัด
+            backgroundColor: '#ffffff'
         });
 
-        const imgData = canvas.toDataURL('image/png');
-        
-        // ตั้งค่า PDF (Landscape, หน่วย mm, ขนาด A4)
         const pdf = new jsPDF('l', 'mm', 'a4');
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
         
-        // คำนวณอัตราส่วนให้พอดีหน้ากระดาษ
-        const imgWidth = canvas.width;
-        const imgHeight = canvas.height;
-        const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+        const imgProps = pdf.getImageProperties(dataUrl);
+        const imgWidth = imgProps.width;
+        const imgHeight = imgProps.height;
         
-        const imgX = (pdfWidth - imgWidth * ratio) / 2;
-        const imgY = 10; // ระยะห่างจากด้านบน 10mm
+        // คำนวณ Ratio ให้พอดีหน้ากระดาษ
+        const ratio = Math.min((pdfWidth - 20) / imgWidth, (pdfHeight - 20) / imgHeight);
+        
+        const finalWidth = imgWidth * ratio;
+        const finalHeight = imgHeight * ratio;
+        
+        const imgX = (pdfWidth - finalWidth) / 2;
+        const imgY = 15; 
 
-        // เพิ่ม Header ใน PDF
         pdf.setFontSize(16);
-        // หมายเหตุ: jsPDF ปกติไม่รองรับภาษาไทยโดยตรง ต้องมีการลง Font เพิ่ม
-        // ในที่นี้เราจะใช้รูปภาพตารางเรียนซึ่งมีภาษาไทยอยู่แล้วจึงไม่มีปัญหา
-        // แต่ข้อความหัวกระดาษถ้าเป็นไทยอาจจะเพี้ยนถ้าไม่ลง Font
-        // ดังนั้นเราจะแปะรูปอย่างเดียวก่อนเพื่อความชัวร์ หรือใส่หัวข้อเป็นภาษาอังกฤษ
-        pdf.text("Class Schedule", 14, 15); 
+        pdf.text("Class Schedule", 14, 10); 
 
-        pdf.addImage(imgData, 'PNG', imgX, 20, imgWidth * ratio, imgHeight * ratio);
+        pdf.addImage(dataUrl, 'PNG', imgX, imgY, finalWidth, finalHeight);
         pdf.save(`Schedule_${new Date().toISOString().slice(0, 10)}.pdf`);
 
     } catch (error) {
         console.error("PDF Export Error:", error);
-        alert("เกิดข้อผิดพลาดในการสร้าง PDF");
+        alert("เกิดข้อผิดพลาดในการสร้าง PDF: " + (error as Error).message);
     }
   };
 
@@ -453,7 +450,7 @@ export default function SchedulePage() {
                                 <CalendarDays className="w-5 h-5" /> ผลลัพธ์การค้นหา
                             </h3>
                             <div className="flex items-center gap-3">
-                                {/* ✅ ปุ่ม Export Excel */}
+                                {/* ปุ่ม Export Excel */}
                                 <Button 
                                     onClick={handleExportExcel}
                                     variant="outline"
@@ -461,7 +458,7 @@ export default function SchedulePage() {
                                 >
                                     <Download className="w-4 h-4 mr-2" /> Excel
                                 </Button>
-                                {/* ✅ ปุ่ม Export PDF */}
+                                {/* ปุ่ม Export PDF */}
                                 <Button 
                                     onClick={handleExportPDF}
                                     variant="outline"
@@ -473,7 +470,7 @@ export default function SchedulePage() {
                             </div>
                         </div>
                         <div className="overflow-x-auto p-2">
-                            {/* ✅ แปะ Ref ที่ตารางเพื่อให้ html2canvas จับภาพ */}
+                            {/* ✅ Ref ครอบตารางเพื่อจับภาพ */}
                             <div ref={scheduleRef} className="bg-white p-2">
                                 <table className="w-full min-w-[1200px]">
                                     <thead>
