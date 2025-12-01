@@ -38,15 +38,7 @@ export default function Home() {
   // ✅ เพิ่ม State สำหรับ User
   const [user, setUser] = useState<any>(null);
 
-  // Mockup ข้อมูลสถานะ AI
-  const aiStatus = {
-    lastRun: "วันนี้, 11:42 น.",
-    penalty: 420,
-    conflicts: 0,
-    status: "Optimal",
-    generation: 50
-  };
-
+ 
   const fetchStats = async () => {
     try {
       setLoading(true);
@@ -222,111 +214,7 @@ export default function Home() {
           </Card>
         </div>
 
-        {/* 2. Advanced Info */}
-        <div className="grid gap-6 md:grid-cols-7">
-          
-          {/* AI Status Card */}
-          <Card className="col-span-full md:col-span-4 shadow-sm border-indigo-100 bg-gradient-to-br from-white to-indigo-50/30">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-slate-800">
-                <Activity className="w-5 h-5 text-indigo-600" /> 
-                AI System Performance
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-white rounded-xl border shadow-sm">
-                  <div className="flex items-center gap-4">
-                    <div className={`p-3 rounded-full ${aiStatus.conflicts === 0 ? 'bg-green-100' : 'bg-red-100'}`}>
-                      {aiStatus.conflicts === 0 ? <CheckCircle2 className="w-6 h-6 text-green-600" /> : <AlertTriangle className="w-6 h-6 text-red-600" />}
-                    </div>
-                    <div>
-                      <p className="font-bold text-slate-900">ตารางเรียนสมบูรณ์ (Optimal)</p>
-                      <p className="text-sm text-slate-500">
-                        Genetic Algorithm รุ่นที่ {aiStatus.generation}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge variant={aiStatus.conflicts === 0 ? "default" : "destructive"} className="bg-green-600 hover:bg-green-700">
-                    Ready to Use
-                  </Badge>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-white border rounded-xl">
-                    <p className="text-xs text-slate-500 uppercase font-bold mb-1">Penalty Score</p>
-                    <p className="text-3xl font-mono font-bold text-indigo-600">{aiStatus.penalty}</p>
-                    <p className="text-[10px] text-slate-400 mt-1">ค่าความผิดพลาดต่ำสุด</p>
-                  </div>
-                  <div className="p-4 bg-white border rounded-xl">
-                    <p className="text-xs text-slate-500 uppercase font-bold mb-1">Last Execution</p>
-                    <div className="flex items-center gap-2 text-slate-700">
-                        <Clock className="w-4 h-4 text-slate-400"/>
-                        <p className="text-lg font-semibold">{aiStatus.lastRun}</p>
-                    </div>
-                    <p className="text-[10px] text-slate-400 mt-1">เวลาประมวลผลล่าสุด</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Recent Activity Card */}
-          <Card className="col-span-full md:col-span-3 shadow-sm border-slate-200">
-             <CardHeader>
-              <CardTitle className="text-slate-800 text-lg">Recent Activity</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                
-                {/* Activity Item 1 */}
-                <div className="flex items-start gap-4">
-                  <div className="mt-1 relative">
-                    <span className="absolute -left-2 top-8 w-0.5 h-full bg-slate-200 last:hidden"></span>
-                    <div className="bg-indigo-100 p-1.5 rounded-full">
-                        <Zap className="w-3.5 h-3.5 text-indigo-600" />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-slate-900">AI Generated Schedule</p>
-                    <p className="text-xs text-slate-500">ระบบสร้างตารางเรียนใหม่สำเร็จ (Gen 50)</p>
-                    <p className="text-[10px] text-slate-400">10 minutes ago</p>
-                  </div>
-                </div>
-
-                {/* Activity Item 2 */}
-                <div className="flex items-start gap-4">
-                  <div className="mt-1 relative">
-                    <div className="bg-green-100 p-1.5 rounded-full">
-                        <Users className="w-3.5 h-3.5 text-green-600" />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-slate-900">Data Updated</p>
-                    <p className="text-xs text-slate-500">อัปเดตข้อมูลนักเรียน ปวช.1</p>
-                    <p className="text-[10px] text-slate-400">2 hours ago</p>
-                  </div>
-                </div>
-
-                {/* Activity Item 3 */}
-                <div className="flex items-start gap-4">
-                  <div className="mt-1">
-                    <div className="bg-orange-100 p-1.5 rounded-full">
-                        <Building2 className="w-3.5 h-3.5 text-orange-600" />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-slate-900">Room Maintenance</p>
-                    <p className="text-xs text-slate-500">แจ้งซ่อมห้อง EN 4/2</p>
-                    <p className="text-[10px] text-slate-400">Yesterday</p>
-                  </div>
-                </div>
-
-              </div>
-            </CardContent>
-          </Card>
-
-        </div>
       </div>
     </main>
   );
