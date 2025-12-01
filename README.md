@@ -1,36 +1,114 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+นี่คือไฟล์ `README.md` สำหรับฝั่ง **Frontend** ครับ ผมออกแบบให้สอดคล้องกับฝั่ง Backend ที่เราทำไปก่อนหน้านี้ โดยเน้นการใช้ **Bun** ในการรัน และสมมติว่าคุณใช้ Framework ยอดนิยมอย่าง **Next.js** หรือ **React (Vite)** (ซึ่งโครงสร้างจะคล้ายๆ กัน)
 
-## Getting Started
+คุณสามารถนำไปปรับแก้ Tech Stack ให้ตรงกับที่คุณใช้จริงได้เลยครับ
 
-First, run the development server:
+-----
+
+### ไฟล์: `README.md` (สำหรับ Frontend)
+
+````markdown
+# Auto-Timetable Frontend (ระบบจัดตารางสอน - ส่วนหน้าบ้าน)
+
+![Bun](https://img.shields.io/badge/Bun-1.0%2B-black) ![React](https://img.shields.io/badge/React-18-blue) ![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.0-sky) ![Status](https://img.shields.io/badge/Status-Development-orange)
+
+Repository นี้คือส่วน **Frontend Web Interface** สำหรับระบบจัดตารางเรียนตารางสอนอัตโนมัติ ทำหน้าที่เป็นหน้าต่างให้ผู้ใช้งานจัดการข้อมูล (ครู, ห้อง, วิชา) และแสดงผลตารางสอนที่จัดเสร็จแล้วในรูปแบบตารางที่สวยงามและดูง่าย เชื่อมต่อกับ Backend ผ่าน REST API
+
+## 💻 ฟีเจอร์หลัก (Key Features)
+
+* **Dashboard Management:** หน้าจัดการข้อมูลพื้นฐาน (CRUD):
+    * จัดการรายชื่อครู (Teachers)
+    * จัดการรายวิชา (Subjects)
+    * จัดการห้องเรียน (Rooms)
+* **Timetable Visualization:** แสดงผลตารางสอนในรูปแบบ Grid/Table แยกตามห้อง หรือตามครูผู้สอน
+* **Control Panel:** ปุ่มสั่งเริ่มประมวลผลจัดตาราง (Trigger Generation) และดูสถานะการทำงาน
+* **Responsive Design:** รองรับการแสดงผลผ่านหน้าจอคอมพิวเตอร์และแท็บเล็ต
+
+## 🛠 Tech Stack
+
+* **Runtime/Package Manager:** Bun
+* **Framework:** [Next.js / React + Vite] *(เลือกอันที่คุณใช้)*
+* **Styling:** Tailwind CSS
+* **State Management:** [Zustand / Redux / Context API] *(ระบุตัวที่คุณใช้)*
+* **HTTP Client:** Axios / Fetch API
+
+## 📂 โครงสร้างโปรเจกต์ (Project Structure)
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+auto-timetable-frontend/
+├── public/             # 🖼️ ไฟล์รูปภาพและ Assets
+├── src/
+│   ├── components/     # 🧩 UI Components (Button, Table, Card)
+│   ├── pages/ (หรือ app/) # 📄 หน้าเพจต่างๆ (Teachers, Schedule, Home)
+│   ├── services/       # 📡 ฟังก์ชันเรียก API (Connect to Backend)
+│   ├── styles/         # 🎨 CSS / Tailwind Config
+│   └── utils/          # 🛠️ Helper functions
+├── .env                # 🔐 Environment Variables
+└── package.json
+````
+
+## 🚀 การติดตั้งและเริ่มต้นใช้งาน (Installation)
+
+โปรเจกต์นี้ใช้ **Bun** เพื่อความรวดเร็วในการติดตั้งและรัน
+
+1.  **Clone Repository**
+
+    ```bash
+    git clone [https://github.com/Anupong-Wantha/auto-timetable-frontend.git](https://github.com/Anupong-Wantha/auto-timetable-frontend.git)
+    cd auto-timetable-frontend
+    ```
+
+2.  **ติดตั้ง Dependencies**
+
+    ```bash
+    bun install
+    ```
+
+3.  **ตั้งค่า Environment Variables**
+    สร้างไฟล์ `.env` (หรือ `.env.local` ถ้าใช้ Next.js) และระบุ URL ของ Backend:
+
+    ```env
+    # ตัวอย่างสำหรับ Next.js
+    NEXT_PUBLIC_API_URL=http://localhost:3000/api
+
+    # หรือตัวอย่างสำหรับ Vite
+    VITE_API_URL=http://localhost:3000/api
+    ```
+
+4.  **รันโปรเจกต์ (Development Mode)**
+
+    ```bash
+    bun dev
+    ```
+
+    เปิด Browser ไปที่ `http://localhost:5173` (Vite) หรือ `http://localhost:3000` (Next.js)
+
+## 🔗 การเชื่อมต่อกับ Backend
+
+Frontend นี้ออกแบบมาให้ทำงานคู่กับ [Auto-Timetable Backend](https://github.com/Anupong-Wantha/auto-timetable-backend)
+โปรดตรวจสอบให้แน่ใจว่า Backend รันอยู่ (ปกติคือ port 3000 หรือ 8000) ก่อนเริ่มใช้งาน Frontend
+
+## 📸 ภาพตัวอย่าง (Screenshots)
+
+*(คุณสามารถใส่รูปภาพหน้าจอของโปรแกรมที่นี่)*
+
+| หน้าจัดการข้อมูล | หน้าตารางสอน |
+| :---: | :---: |
+|  |  |
+
+## 🤝 การมีส่วนร่วม (Contributing)
+
+ยินดีต้อนรับทุกการ Pull Request หากต้องการปรับปรุงหน้าตา UI หรือเพิ่มฟีเจอร์ใหม่ๆ
+
+## 📄 License
+
+MIT License
+
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### จุดที่ต้องตรวจสอบและแก้ไขเอง:
+1.  **Tech Stack:** ผมใส่เป็น `[Next.js / React + Vite]` ไว้ ให้คุณเลือกลบอันที่ไม่ใช่ออกครับ
+2.  **State Management:** ถ้าคุณใช้ Context API ธรรมดา หรือ Redux ก็แก้ตรงส่วนนี้ให้ตรงความจริงครับ
+3.  **Port:** ปกติถ้า Backend รัน 3000 แล้ว Frontend เป็น Next.js (ซึ่งชอบรัน 3000 เหมือนกัน) มันอาจจะชนกัน เช็คให้ดีว่า Frontend รันที่ Port ไหน (เช่น 3001) แล้วแก้ในคู่มือให้ถูกต้องครับ
+```
