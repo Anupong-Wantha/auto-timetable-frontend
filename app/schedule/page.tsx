@@ -2,7 +2,6 @@
 
 import { useState, useRef } from 'react';
 import * as XLSX from 'xlsx'; 
-// ✅ เปลี่ยนมาใช้ html-to-image แทน html2canvas
 import * as htmlToImage from 'html-to-image';
 import jsPDF from 'jspdf';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -20,10 +19,17 @@ import Link from 'next/link';
 
 // --- Constants ---
 const TIME_SLOTS = [
-  "08:30-09:30", "09:30-10:30", "10:30-11:30", "11:30-12:30", 
-  "12:30-13:30", "13:30-14:30", "14:30-15:30", "15:30-16:30", 
-  "16:30-17:30", "17:30-18:30", "18:30-19:30"
+  "08:00-09:00", 
+  "09:00-10:00", 
+  "10:00-11:00", 
+  "11:00-12:00", 
+  "12:00-13:00", 
+  "13:00-14:00", 
+  "14:00-15:00", 
+  "15:00-16:00", 
+  "16:00-17:00"
 ];
+
 const DAYS = ["จันทร์", "อังคาร", "พุธ", "พฤหัสบดี", "ศุกร์"];
 
 // --- Mock Data ---
@@ -37,7 +43,6 @@ export default function SchedulePage() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   
-  // ✅ Ref สำหรับจับภาพตาราง
   const scheduleRef = useRef<HTMLDivElement>(null);
 
   // State สำหรับ Filter
@@ -74,6 +79,7 @@ export default function SchedulePage() {
       const params = new URLSearchParams();
       params.append('type', searchType);
       
+      // ... (Search Logic เหมือนเดิม)
       if(searchType === 'student') {
         if(filters.std_id) params.append('id', filters.std_id.trim());
         if(filters.std_fname) params.append('fname', filters.std_fname.trim());
@@ -100,9 +106,7 @@ export default function SchedulePage() {
       }
 
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/schedules/search?${params.toString()}`);
-      
       if (!res.ok) throw new Error('Failed to fetch data');
-
       const data = await res.json();
       setScheduleData(Array.isArray(data) ? data : []);
 
@@ -169,49 +173,39 @@ export default function SchedulePage() {
     XLSX.writeFile(wb, `Schedule_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
-  // --- ✅ Export PDF (ใช้ html-to-image) ---
+  // --- Export PDF ---
   const handleExportPDF = async () => {
     if (!scheduleRef.current || scheduleData.length === 0) {
         alert("ไม่มีข้อมูลให้ Export");
         return;
     }
-
     try {
         const input = scheduleRef.current;
-        
-        // ใช้ html-to-image แทน html2canvas (แก้ปัญหาเรื่องสี lab)
         const dataUrl = await htmlToImage.toPng(input, { 
             quality: 1.0,
-            pixelRatio: 2, // เพิ่มความคมชัด
+            pixelRatio: 2, 
             backgroundColor: '#ffffff'
         });
 
         const pdf = new jsPDF('l', 'mm', 'a4');
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = pdf.internal.pageSize.getHeight();
-        
         const imgProps = pdf.getImageProperties(dataUrl);
         const imgWidth = imgProps.width;
         const imgHeight = imgProps.height;
-        
-        // คำนวณ Ratio ให้พอดีหน้ากระดาษ
         const ratio = Math.min((pdfWidth - 20) / imgWidth, (pdfHeight - 20) / imgHeight);
-        
         const finalWidth = imgWidth * ratio;
         const finalHeight = imgHeight * ratio;
-        
         const imgX = (pdfWidth - finalWidth) / 2;
         const imgY = 15; 
 
         pdf.setFontSize(16);
         pdf.text("Class Schedule", 14, 10); 
-
         pdf.addImage(dataUrl, 'PNG', imgX, imgY, finalWidth, finalHeight);
         pdf.save(`Schedule_${new Date().toISOString().slice(0, 10)}.pdf`);
-
     } catch (error) {
         console.error("PDF Export Error:", error);
-        alert("เกิดข้อผิดพลาดในการสร้าง PDF: " + (error as Error).message);
+        alert("เกิดข้อผิดพลาดในการสร้าง PDF");
     }
   };
 
@@ -232,8 +226,8 @@ export default function SchedulePage() {
                 }
             }
             cells.push(
-                <td key={i} colSpan={span} className="border-b border-r p-1 h-28 align-top relative">
-                    <div className="bg-indigo-50 border border-indigo-200 rounded-md h-full w-full flex flex-col justify-center items-center text-center p-2 shadow-sm hover:bg-indigo-100 cursor-pointer absolute inset-0 m-1">
+                <td key={i} colSpan={span} className="border-b border-r p-1 h-28 align-top relative min-w-[100px]">
+                    <div className="bg-indigo-50 border border-indigo-200 rounded-md h-full w-full flex flex-col justify-center items-center text-center p-2 shadow-sm hover:bg-indigo-100 cursor-pointer absolute inset-0 m-1 transition-transform active:scale-95">
                         <span className="text-xs font-bold text-indigo-700 line-clamp-2">{subject.subject_name}</span>
                         <span className="text-[10px] text-slate-500 mt-1 font-mono bg-white/50 px-1 rounded">{subject.subject_code}</span>
                         <div className="flex items-center gap-1 mt-2 text-[10px] text-indigo-600 font-medium">
@@ -247,7 +241,7 @@ export default function SchedulePage() {
             );
             skipUntil = i + span - 1;
         } else {
-            cells.push(<td key={i} className="border-b border-r p-1 h-28"></td>);
+            cells.push(<td key={i} className="border-b border-r p-1 h-28 min-w-[100px]"></td>);
         }
     }
     return cells;
@@ -256,53 +250,58 @@ export default function SchedulePage() {
   const SearchInput = ({ icon: Icon, ...props }: any) => (
     <div className="relative">
       <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-      <Input className="pl-9 bg-slate-50 focus:bg-white transition-colors" {...props} />
+      <Input className="pl-9 bg-slate-50 focus:bg-white transition-colors h-11" {...props} />
     </div>
   );
 
   return (
-    <main className="min-h-screen bg-slate-50/50 p-4 md:p-8 font-sans">
+    <main className="min-h-screen bg-slate-50/50 p-3 md:p-8 font-sans">
       <div className="container mx-auto max-w-6xl">
         
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-            <Link href="/" className="flex items-center text-slate-500 hover:text-indigo-600 transition-colors text-sm font-medium">
+        {/* Header - Responsive Layout */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+            <Link href="/" className="flex items-center text-slate-500 hover:text-indigo-600 transition-colors text-sm font-medium w-fit">
                 <ArrowLeft className="w-4 h-4 mr-2" /> กลับหน้าหลัก
             </Link>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-800 flex items-center gap-3">
-                <div className="p-2 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-200">
+            
+            <div className="flex items-center gap-3">
+                 <div className="p-2 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-200 shrink-0">
                   <CalendarDays className="w-6 h-6 text-white" />
                 </div>
-                ระบบค้นหาตารางเรียน
-            </h1>
-            <div className="w-20"></div>
+                <h1 className="text-xl md:text-3xl font-bold text-slate-800">
+                    ระบบค้นหาตารางเรียน
+                </h1>
+            </div>
+            {/* Spacer for desktop layout balance */}
+            <div className="hidden md:block w-24"></div>
         </div>
 
         {/* Search Card */}
         <Card className="mb-8 shadow-xl shadow-slate-200/60 border-0 overflow-hidden bg-white">
-          <CardHeader className="pb-0 bg-gradient-to-r from-indigo-50 to-white border-b px-6 pt-6">
+          <CardHeader className="pb-0 bg-gradient-to-r from-indigo-50 to-white border-b px-4 md:px-6 pt-6">
             <CardTitle className="text-lg text-slate-800 flex items-center gap-2">
               <Search className="w-5 h-5 text-indigo-600" /> ค้นหาข้อมูล
             </CardTitle>
             <CardDescription>เลือกประเภทข้อมูลที่ต้องการค้นหา</CardDescription>
             
+            {/* Responsive Tabs */}
             <Tabs defaultValue="student" onValueChange={handleTabChange} className="w-full mt-4">
-              <TabsList className="grid w-full grid-cols-4 bg-slate-100/80 p-1 rounded-t-lg rounded-b-none h-12">
-                <TabsTrigger value="student" className="data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm font-medium"><User className="w-4 h-4 mr-2"/> นักเรียน</TabsTrigger>
-                <TabsTrigger value="instructor" className="data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm font-medium"><GraduationCap className="w-4 h-4 mr-2"/> อาจารย์</TabsTrigger>
-                <TabsTrigger value="room" className="data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm font-medium"><Building2 className="w-4 h-4 mr-2"/> ห้องเรียน</TabsTrigger>
-                <TabsTrigger value="subject" className="data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm font-medium"><BookOpen className="w-4 h-4 mr-2"/> รายวิชา</TabsTrigger>
+              <TabsList className="flex w-full overflow-x-auto bg-slate-100/80 p-1 rounded-t-lg rounded-b-none h-12 gap-1 no-scrollbar">
+                <TabsTrigger value="student" className="flex-1 min-w-[100px] data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm font-medium"><User className="w-4 h-4 mr-2"/> นักเรียน</TabsTrigger>
+                <TabsTrigger value="instructor" className="flex-1 min-w-[100px] data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm font-medium"><GraduationCap className="w-4 h-4 mr-2"/> อาจารย์</TabsTrigger>
+                <TabsTrigger value="room" className="flex-1 min-w-[100px] data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm font-medium"><Building2 className="w-4 h-4 mr-2"/> ห้อง</TabsTrigger>
+                <TabsTrigger value="subject" className="flex-1 min-w-[100px] data-[state=active]:bg-white data-[state=active]:text-indigo-600 data-[state=active]:shadow-sm font-medium"><BookOpen className="w-4 h-4 mr-2"/> วิชา</TabsTrigger>
               </TabsList>
             </Tabs>
           </CardHeader>
 
-          <CardContent className="p-6 md:p-8">
+          <CardContent className="p-4 md:p-8">
             <form onSubmit={handleSearch}>
               
               {/* --- 1. STUDENT SEARCH --- */}
               {searchType === 'student' && (
-                <div className="animate-in fade-in slide-in-from-left-2 duration-300 space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div className="animate-in fade-in slide-in-from-left-2 duration-300 space-y-4 md:space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-5">
                         <div className="space-y-2">
                             <label className="text-xs font-semibold text-slate-500 uppercase">รหัสนักศึกษา</label>
                             <SearchInput icon={Hash} placeholder="เช่น 662090100xx" value={filters.std_id} onChange={(e:any) => setFilters({...filters, std_id: e.target.value})} />
@@ -318,7 +317,7 @@ export default function SchedulePage() {
                         <div className="space-y-2">
                             <label className="text-xs font-semibold text-slate-500 uppercase">ระดับชั้น</label>
                             <Select onValueChange={val => setFilters({...filters, std_year: val})} value={filters.std_year}>
-                                <SelectTrigger className="bg-slate-50"><SelectValue placeholder="เลือกชั้นปี" /></SelectTrigger>
+                                <SelectTrigger className="bg-slate-50 h-11"><SelectValue placeholder="เลือกชั้นปี" /></SelectTrigger>
                                 <SelectContent>
                                     {YEARS.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
                                 </SelectContent>
@@ -328,10 +327,10 @@ export default function SchedulePage() {
                             <label className="text-xs font-semibold text-slate-500 uppercase">ห้อง / กลุ่มเรียน</label>
                             <SearchInput icon={Users} placeholder="เช่น 1, 2, A, B" value={filters.std_group} onChange={(e:any) => setFilters({...filters, std_group: e.target.value})} />
                         </div>
-                         <div className="space-y-2">
+                          <div className="space-y-2">
                             <label className="text-xs font-semibold text-slate-500 uppercase">แผนกวิชา</label>
                             <Select onValueChange={val => setFilters({...filters, std_dept: val})} value={filters.std_dept}>
-                                <SelectTrigger className="bg-slate-50"><SelectValue placeholder="เลือกแผนก" /></SelectTrigger>
+                                <SelectTrigger className="bg-slate-50 h-11"><SelectValue placeholder="เลือกแผนก" /></SelectTrigger>
                                 <SelectContent>
                                     {DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                                 </SelectContent>
@@ -343,7 +342,7 @@ export default function SchedulePage() {
 
               {/* --- 2. INSTRUCTOR SEARCH --- */}
               {searchType === 'instructor' && (
-                 <div className="animate-in fade-in slide-in-from-left-2 duration-300 grid grid-cols-1 md:grid-cols-3 gap-5">
+                  <div className="animate-in fade-in slide-in-from-left-2 duration-300 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5">
                     <div className="space-y-2">
                         <label className="text-xs font-semibold text-slate-500 uppercase">ชื่ออาจารย์</label>
                         <SearchInput icon={User} placeholder="ระบุชื่อ" value={filters.ins_fname} onChange={(e:any) => setFilters({...filters, ins_fname: e.target.value})} />
@@ -355,7 +354,7 @@ export default function SchedulePage() {
                     <div className="space-y-2">
                         <label className="text-xs font-semibold text-slate-500 uppercase">แผนกวิชา</label>
                         <Select onValueChange={val => setFilters({...filters, ins_dept: val})} value={filters.ins_dept}>
-                            <SelectTrigger className="bg-slate-50"><SelectValue placeholder="สังกัดแผนก" /></SelectTrigger>
+                            <SelectTrigger className="bg-slate-50 h-11"><SelectValue placeholder="สังกัดแผนก" /></SelectTrigger>
                             <SelectContent>
                                 {DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                             </SelectContent>
@@ -366,7 +365,7 @@ export default function SchedulePage() {
 
               {/* --- 3. ROOM SEARCH --- */}
               {searchType === 'room' && (
-                 <div className="animate-in fade-in slide-in-from-left-2 duration-300 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                  <div className="animate-in fade-in slide-in-from-left-2 duration-300 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
                     <div className="space-y-2">
                         <label className="text-xs font-semibold text-slate-500 uppercase">รหัส/ชื่อห้อง</label>
                         <SearchInput icon={MapPin} placeholder="เช่น 523, LAB-1" value={filters.room_code} onChange={(e:any) => setFilters({...filters, room_code: e.target.value})} />
@@ -374,7 +373,7 @@ export default function SchedulePage() {
                     <div className="space-y-2">
                         <label className="text-xs font-semibold text-slate-500 uppercase">ประเภทห้อง</label>
                         <Select onValueChange={val => setFilters({...filters, room_type: val})} value={filters.room_type}>
-                            <SelectTrigger className="bg-slate-50"><SelectValue placeholder="ประเภท" /></SelectTrigger>
+                            <SelectTrigger className="bg-slate-50 h-11"><SelectValue placeholder="ประเภท" /></SelectTrigger>
                             <SelectContent>
                                 {ROOM_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                             </SelectContent>
@@ -386,8 +385,8 @@ export default function SchedulePage() {
                     </div>
                     <div className="space-y-2">
                         <label className="text-xs font-semibold text-slate-500 uppercase">แผนกที่ดูแล</label>
-                         <Select onValueChange={val => setFilters({...filters, room_dept: val})} value={filters.room_dept}>
-                            <SelectTrigger className="bg-slate-50"><SelectValue placeholder="แผนกเจ้าของห้อง" /></SelectTrigger>
+                          <Select onValueChange={val => setFilters({...filters, room_dept: val})} value={filters.room_dept}>
+                            <SelectTrigger className="bg-slate-50 h-11"><SelectValue placeholder="แผนกเจ้าของห้อง" /></SelectTrigger>
                             <SelectContent>
                                 {DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                             </SelectContent>
@@ -398,7 +397,7 @@ export default function SchedulePage() {
 
                {/* --- 4. SUBJECT SEARCH --- */}
                {searchType === 'subject' && (
-                 <div className="animate-in fade-in slide-in-from-left-2 duration-300 grid grid-cols-1 md:grid-cols-3 gap-5">
+                  <div className="animate-in fade-in slide-in-from-left-2 duration-300 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5">
                     <div className="space-y-2">
                         <label className="text-xs font-semibold text-slate-500 uppercase">รหัสวิชา</label>
                         <SearchInput icon={Hash} placeholder="เช่น 2000-xxxx" value={filters.subj_code} onChange={(e:any) => setFilters({...filters, subj_code: e.target.value})} />
@@ -414,19 +413,19 @@ export default function SchedulePage() {
                 </div>
               )}
 
-              <div className="flex flex-col sm:flex-row justify-center gap-4 mt-8 border-t pt-6">
+              <div className="flex flex-col-reverse sm:flex-row justify-center gap-3 mt-8 border-t pt-6">
                   <Button 
                     type="button" 
                     variant="outline" 
                     onClick={clearFilters}
-                    className="w-full sm:w-32 text-slate-500 hover:text-slate-700"
+                    className="w-full sm:w-32 h-12 text-slate-500 hover:text-slate-700"
                   >
                     <Eraser className="w-4 h-4 mr-2" /> ล้างค่า
                   </Button>
                   <Button 
                     type="submit" 
                     disabled={loading} 
-                    className="w-full sm:w-48 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 transition-all hover:scale-105"
+                    className="w-full sm:w-48 h-12 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 transition-all hover:scale-105"
                   >
                     {loading ? (
                         <span className="flex items-center"><span className="animate-spin mr-2">⏳</span> กำลังค้นหา...</span>
@@ -445,16 +444,17 @@ export default function SchedulePage() {
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                 {scheduleData.length > 0 ? (
                     <div className="bg-white rounded-xl shadow-lg border overflow-hidden">
-                        <div className="p-4 bg-indigo-50 border-b flex justify-between items-center flex-wrap gap-2">
+                        <div className="p-4 bg-indigo-50 border-b flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                             <h3 className="font-bold text-indigo-900 flex items-center gap-2">
                                 <CalendarDays className="w-5 h-5" /> ผลลัพธ์การค้นหา
+                                <Badge className="ml-2 bg-indigo-200 text-indigo-800 hover:bg-indigo-300">{scheduleData.length} รายการ</Badge>
                             </h3>
-                            <div className="flex items-center gap-3">
+                            <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                                 {/* ปุ่ม Export Excel */}
                                 <Button 
                                     onClick={handleExportExcel}
                                     variant="outline"
-                                    className="border-green-500 text-green-700 hover:bg-green-50"
+                                    className="flex-1 sm:flex-none border-green-500 text-green-700 hover:bg-green-50 text-xs sm:text-sm"
                                 >
                                     <Download className="w-4 h-4 mr-2" /> Excel
                                 </Button>
@@ -462,22 +462,24 @@ export default function SchedulePage() {
                                 <Button 
                                     onClick={handleExportPDF}
                                     variant="outline"
-                                    className="border-red-500 text-red-700 hover:bg-red-50"
+                                    className="flex-1 sm:flex-none border-red-500 text-red-700 hover:bg-red-50 text-xs sm:text-sm"
                                 >
                                     <FileText className="w-4 h-4 mr-2" /> PDF
                                 </Button>
-                                <Badge className="bg-indigo-600 hover:bg-indigo-700 h-9 px-3 text-sm">{scheduleData.length} รายการ</Badge>
                             </div>
                         </div>
-                        <div className="overflow-x-auto p-2">
-                            {/* ✅ Ref ครอบตารางเพื่อจับภาพ */}
-                            <div ref={scheduleRef} className="bg-white p-2">
-                                <table className="w-full min-w-[1200px]">
+                        
+                        {/* Table Container with Scroll */}
+                        <div className="overflow-x-auto w-full">
+                            <div ref={scheduleRef} className="bg-white p-2 min-w-fit">
+                                <table className="w-full min-w-[1000px] lg:min-w-[1200px]">
                                     <thead>
                                         <tr>
-                                            <th className="bg-white p-4 w-24 border-b border-r text-sm font-semibold text-slate-700 sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">วัน / เวลา</th>
+                                            <th className="bg-white p-4 w-24 border-b border-r text-sm font-semibold text-slate-700 sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                                                วัน / เวลา
+                                            </th>
                                             {TIME_SLOTS.map((time, i) => (
-                                                <th key={i} className="bg-slate-50 p-2 border-b border-r text-xs font-medium text-slate-500 text-center w-[8%]">
+                                                <th key={i} className="bg-slate-50 p-2 border-b border-r text-xs font-medium text-slate-500 text-center w-[8%] min-w-[80px]">
                                                     <div className="mb-1 bg-slate-200/50 rounded py-0.5 mx-auto w-fit px-2 font-mono">คาบ {i+1}</div>
                                                     {time}
                                                 </th>
@@ -487,7 +489,7 @@ export default function SchedulePage() {
                                     <tbody>
                                         {DAYS.map((day, dayIndex) => (
                                             <tr key={day}>
-                                                <td className="bg-slate-50 p-4 border-b border-r font-bold text-slate-700 text-center sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
+                                                <td className="bg-slate-50 p-4 border-b border-r font-bold text-slate-700 text-center sticky left-0 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">
                                                     {day}
                                                 </td>
                                                 {renderRowCells(dayIndex)}
